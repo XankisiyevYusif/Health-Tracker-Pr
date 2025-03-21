@@ -18,8 +18,8 @@ namespace Auth_jwt
             {
                 options.AddPolicy("AllowLocalhost5173", policy =>
                 {
-                    policy.WithOrigins("http://localhost:5174")
-                          .AllowAnyHeader()  
+                    policy.WithOrigins("http://localhost:5173")
+                          .AllowAnyHeader() 
                           .AllowAnyMethod(); 
                 });
             });

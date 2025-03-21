@@ -33,3 +33,16 @@ export const login = async (userData) => {
     throw error.response.data;
   }
 };
+
+export const logout = async () => {
+  try {
+    await axios.post(`${API_URL}/Logout`);
+
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+
+    window.location.href = '/login';
+  } catch (error) {
+    throw error.response?.data || 'Logout failed';
+  }
+};

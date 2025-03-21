@@ -86,7 +86,7 @@ namespace Auth_jwt.Controllers
 
             var token = GenerateJwtToken(user);
 
-            return Ok(new { succes = true, token });
+            return Ok(new { succes = true, token, name = user.Name, email = user.Email });
         }
 
         private string GenerateJwtToken(ApplicationUser user)

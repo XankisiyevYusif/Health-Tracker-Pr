@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using Auth_jwt.Models;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Auth_jwt.Data
@@ -10,5 +11,7 @@ namespace Auth_jwt.Data
         {
 
         }
+
+        public DbSet<ChartData> ChartData { get; set; }
     }
 }

@@ -15,6 +15,7 @@ namespace Auth_jwt.Controllers
     [ApiController]
     public class UserAuthController : ControllerBase
     {
+        private readonly IWebHostEnvironment _env;
         private UserManager<ApplicationUser> _usermanager;
         private SignInManager<ApplicationUser> _signinManager;
         private string? _jwtKey;
@@ -22,7 +23,7 @@ namespace Auth_jwt.Controllers
         private string? _JwtAudience;
         private int _JwtExpiry;
 
-        public UserAuthController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signinManager, IConfiguration configuration)
+        public UserAuthController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signinManager, IConfiguration configuration, IWebHostEnvironment env)
         {
             _usermanager = userManager;
             _signinManager = signinManager;
@@ -30,31 +31,62 @@ namespace Auth_jwt.Controllers
             _JwtIssuer = configuration["Jwt:Issuer"];
             _JwtAudience = configuration["Jwt:Audience"];
             _JwtExpiry = int.Parse(configuration["Jwt:ExpiryMinutes"]);
+            _env = env;
         }
 
         [HttpPost("Register")]
-        public async Task<IActionResult> Register([FromBody] RegisterModel registerModel)
+        public async Task<IActionResult> Register([FromForm] RegisterModel registerModel)
         {
-            if(registerModel == null
+            if (registerModel == null
                 || string.IsNullOrEmpty(registerModel.Name)
                 || string.IsNullOrEmpty(registerModel.Email)
-                || string.IsNullOrEmpty(registerModel.Password))
+                || string.IsNullOrEmpty(registerModel.Password)
+                || registerModel.Age <= 0
+                || registerModel.Weight <= 0
+                || registerModel.Height <= 0
+                || string.IsNullOrEmpty(registerModel.Gender))
             {
                 return BadRequest("Invalid data");
             }
 
-            var exsisitingUser = await _usermanager.FindByEmailAsync(registerModel.Email);
+            var existingUser = await _usermanager.FindByEmailAsync(registerModel.Email);
 
-            if (exsisitingUser != null)
+            if (existingUser != null)
             {
                 return BadRequest("User already exists");
+            }
+
+            // Profil fotoğrafını kaydetme işlemi
+            string profileImagePath = null;
+            if (registerModel.ProfileImage != null && registerModel.ProfileImage.Length > 0)
+            {
+                var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads");
+                if (!Directory.Exists(uploadsFolder))
+                {
+                    Directory.CreateDirectory(uploadsFolder);
+                }
+
+                var uniqueFileName = Guid.NewGuid().ToString() + "_" + registerModel.ProfileImage.FileName;
+                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    await registerModel.ProfileImage.CopyToAsync(fileStream);
+                }
+
+                profileImagePath = uniqueFileName; // Dosya yolunu kaydedin
             }
 
             var user = new ApplicationUser
             {
                 Name = registerModel.Name,
                 Email = registerModel.Email,
-                UserName = registerModel.Email
+                UserName = registerModel.Email,
+                Age = registerModel.Age,
+                Weight = registerModel.Weight,
+                Height = registerModel.Height,
+                Gender = registerModel.Gender,
+                ProfileImagePath = profileImagePath
             };
 
             var result = await _usermanager.CreateAsync(user, registerModel.Password);

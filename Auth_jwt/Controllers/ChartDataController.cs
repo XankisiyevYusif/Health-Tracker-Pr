@@ -12,69 +12,70 @@ namespace Auth_jwt.Controllers
     public class ChartDataController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+
         public ChartDataController(ApplicationDbContext context)
         {
             _context = context;
         }
+
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ChartData>>> GetChartData()
         {
-            return await _context.ChartData.OrderBy(c => c.Date).ToListAsync();
-        }
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutChartData(int id, ChartData chartData)
-        {
-            if (id != chartData.Id)
-            {
-                return BadRequest();
-            }
-            _context.Entry(chartData).State = EntityState.Modified;
             try
             {
-                await _context.SaveChangesAsync();
+                var chartData = await _context.ChartData
+                    .Select(c => new
+                    {
+                        dayOfWeek = c.DayOfWeek,
+                        value1 = c.Value
+                    })
+                    .ToListAsync();
+
+                if (chartData == null || !chartData.Any())
+                {
+                    return NotFound("No chart data found.");
+                }
+
+                return Ok(chartData);
             }
-            catch (DbUpdateConcurrencyException)
+            catch (Exception ex)
             {
-                if (!ChartDataExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    $"Internal server error: {ex.Message}");
             }
-            return NoContent();
         }
+
         [HttpPost]
-        public async Task<ActionResult<ChartData>> AddData([FromBody] ChartDataDto request)
+        public async Task<IActionResult> PostChartData([FromBody] ChartDataRequestDto request)
         {
-            if (request == null || request.Value <= 0)
+            if (request.DaysOfWeek.Count == 0 || request.Values.Count == 0 || request.DaysOfWeek.Count != request.Values.Count)
             {
-                return BadRequest("Invalid value.");
+                return BadRequest("Days and values must have the same count and not be empty.");
             }
 
-            var newData = new ChartData { Value = request.Value, Date = DateTime.UtcNow }; // Add a date if needed
-            _context.ChartData.Add(newData);
+            var existingData = await _context.ChartData.ToListAsync();
+
+            foreach (var (day, value) in request.DaysOfWeek.Zip(request.Values, Tuple.Create))
+            {
+                if (existingData.Any(x => x.DayOfWeek == day))
+                {
+                    return BadRequest($"Data for {day} already exists.");
+                }
+            }
+
+            for (int i = 0; i < request.DaysOfWeek.Count; i++)
+            {
+                var newData = new ChartData
+                {
+                    DayOfWeek = request.DaysOfWeek[i],
+                    Value = request.Values[i]
+                };
+                _context.ChartData.Add(newData);
+            }
+
             await _context.SaveChangesAsync();
 
-            return Ok(newData);
-        }
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteChartData(int id)
-        {
-            var chartData = await _context.ChartData.FindAsync(id);
-            if (chartData == null)
-            {
-                return NotFound();
-            }
-            _context.ChartData.Remove(chartData);
-            await _context.SaveChangesAsync();
-            return NoContent();
-        }
-        private bool ChartDataExists(int id)
-        {
-            return _context.ChartData.Any(e => e.Id == id);
+            return CreatedAtAction(nameof(PostChartData), new { message = "Chart data added successfully." });
         }
     }
 }

@@ -27,7 +27,7 @@ function DailyStepCounterCard() {
       const response = await axios.get(API_BASE_URL, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
+      
       const data = response.data; 
 
       // Günleri sırala ve formatla
